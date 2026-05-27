@@ -1,0 +1,118 @@
+================================================================================
+INTELIGENCIA ARTIFICIAL – UNIDAD 5
+ALGORITMO: WORD2VEC – SKIP-GRAM (PNL)
+Dra. Jessica Sarahi Méndez Rincón
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+1. FUNDAMENTOS MATEMÁTICOS
+────────────────────────────────────────────────────────────────────────────────
+
+Word2Vec (Skip-Gram) es una red neuronal de una capa oculta que aprende
+representaciones vectoriales densas de palabras.
+
+Parámetros:
+  V = tamaño del vocabulario
+  N = dimensión del embedding (espacio latente)
+
+Matrices de pesos:
+  W1 ∈ ℝ^(V×N)   → pesos de entrada  (embeddings de palabras)
+  W2 ∈ ℝ^(N×V)   → pesos de salida
+
+Propagación hacia adelante (Forward):
+  1. Capa oculta:    h = W1[x]         (selección de la fila x de W1)
+  2. Logits:         u = h · W2        (producto punto, u ∈ ℝ^V)
+  3. Probabilidades: ŷ = softmax(u)
+
+Función Softmax (numéricamente estable):
+  softmax(x)_i = exp(x_i - max(x)) / Σ_j exp(x_j - max(x))
+
+Función de pérdida (entropía cruzada):
+  L = -log( ŷ_c )   donde c es el índice de la palabra contexto real
+
+Retropropagación (Backward):
+  Error:         e = ŷ - y_true    (y_true es el vector one-hot del contexto)
+  Gradiente W2:  ∂L/∂W2 = h ⊗ e   (producto externo, shape N×V)
+  Gradiente W1:  ∂L/∂W1[x] = W2 · e  (shape N)
+
+Actualización de pesos (descenso de gradiente, lr = 0.01):
+  W2     ← W2     - lr · (h ⊗ e)
+  W1[x]  ← W1[x]  - lr · (W2 · e)
+
+
+────────────────────────────────────────────────────────────────────────────────
+2. DESCRIPCIÓN FORMAL / NARRATIVA
+────────────────────────────────────────────────────────────────────────────────
+
+Word2Vec aprende a representar palabras como vectores numéricos en un
+espacio de N dimensiones, de modo que palabras con significado similar
+queden geométricamente cercanas.
+
+El modelo Skip-Gram toma una palabra de entrada (ej. "Messi", índice 1)
+y trata de predecir las palabras de su contexto (ej. "gol", índice 0).
+
+Vocabulario del ejemplo del código:
+  {'gol': 0, 'messi': 1, 'futbol': 2}   → V = 3, N = 2
+
+Pasos:
+  1. La palabra "messi" (x=1) selecciona la fila 1 de W1 como embedding h.
+  2. Se proyecta h al espacio del vocabulario: u = h · W2.
+  3. Softmax convierte u en probabilidades ŷ sobre las V palabras.
+  4. Se calcula el error: e = ŷ - one_hot("gol").
+  5. Se actualizan W1 y W2 para que la próxima predicción sea más cercana
+     al contexto real.
+
+Tras muchas iteraciones, W1 contiene los embeddings entrenados de cada
+palabra del vocabulario.
+
+
+────────────────────────────────────────────────────────────────────────────────
+3. PSEUDOCÓDIGO
+────────────────────────────────────────────────────────────────────────────────
+
+// INICIALIZACIÓN
+FUNCIÓN inicializar(V, N):
+  W1 ← matriz aleatoria de shape (V × N)   // embeddings de entrada
+  W2 ← matriz aleatoria de shape (N × V)   // pesos de salida
+  RETORNAR W1, W2
+
+// SOFTMAX
+FUNCIÓN softmax(x):
+  e_x ← exp(x - max(x))           // estabilidad numérica
+  RETORNAR e_x / suma(e_x)
+
+// FORWARD (propagación hacia adelante)
+FUNCIÓN forward(x, W1, W2):
+  h   ← W1[x]                     // capa oculta = fila x de W1
+  u   ← h · W2                    // logits (producto punto)
+  y_c ← softmax(u)                // probabilidades de salida
+  RETORNAR y_c, h, u
+
+// BACKWARD (retropropagación)
+FUNCIÓN backward(e, h, x, W1, W2, lr=0.01):
+  dW2   ← producto_externo(h, e)  // gradiente de W2, shape (N×V)
+  dW1   ← W2 · e                  // gradiente hacia W1, shape (N)
+  W2    ← W2    - lr * dW2        // actualizar W2
+  W1[x] ← W1[x] - lr * dW1       // actualizar solo la fila x de W1
+
+// ENTRENAMIENTO (un paso)
+FUNCIÓN entrenar(x_entrada, c_contexto, W1, W2):
+  y_pred, h, u ← forward(x_entrada, W1, W2)
+
+  // Construir vector one-hot del contexto real
+  y_true ← vector de ceros de tamaño V
+  y_true[c_contexto] ← 1
+
+  // Calcular error y actualizar pesos
+  e ← y_pred - y_true
+  backward(e, h, x_entrada, W1, W2)
+
+// Ejemplo de uso:
+W1, W2 ← inicializar(V=3, N=2)
+entrenar(x_entrada=1, c_contexto=0, W1, W2)   // "messi" → predice "gol"
+IMPRIMIR W1[1]   // Vector actualizado de "messi"
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

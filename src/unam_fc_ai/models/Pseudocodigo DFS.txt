@@ -1,0 +1,21 @@
+﻿FUNCION DFS(grafo, nodo, visitados)                    → O(1)
+
+
+    SI visitados es nulo ENTONCES                      → O(1)
+        visitados ← conjunto vacío                     → O(1)
+
+
+    agregar nodo a visitados                           → O(1)
+    imprimir nodo                                      → O(1)
+
+
+    PARA cada vecino EN grafo[nodo]                    → O(grado(nodo))
+
+
+        SI vecino NO está en visitados                 → O(1)
+
+
+            DFS(grafo, vecino, visitados)              → llamada recursiva
+
+
+    REGRESAR visitados                                 → O(1)

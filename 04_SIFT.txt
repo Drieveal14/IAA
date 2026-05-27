@@ -1,0 +1,130 @@
+================================================================================
+INTELIGENCIA ARTIFICIAL – UNIDAD 5
+ALGORITMO: SIFT – Scale-Invariant Feature Transform (VISIÓN COMPUTACIONAL)
+Dra. Jessica Sarahi Méndez Rincón
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+1. FUNDAMENTOS MATEMÁTICOS
+────────────────────────────────────────────────────────────────────────────────
+
+SIFT detecta y describe puntos clave invariantes a escala, rotación
+e iluminación. Su pipeline matemático consta de cuatro etapas:
+
+ETAPA 1 – Espacio de escala (DoG, Difference of Gaussians):
+  L(x, y, σ) = G(x, y, σ) * I(x, y)
+  D(x, y, σ) = L(x, y, kσ) - L(x, y, σ)
+
+  donde G es un kernel gaussiano de desviación σ,
+  * denota convolución, y k es un factor de escala constante.
+
+ETAPA 2 – Detección de extremos locales:
+  Un píxel es punto clave candidato si es máximo o mínimo local
+  comparado con sus 26 vecinos en espacio y escala (3 capas DoG).
+
+ETAPA 3 – Asignación de orientación:
+  Para cada punto clave, se calcula el histograma de gradientes
+  en una vecindad 16×16 alrededor del punto.
+
+  Magnitud:    m(x,y) = √( (L(x+1,y)-L(x-1,y))² + (L(x,y+1)-L(x,y-1))² )
+  Orientación: θ(x,y) = arctan( (L(x,y+1)-L(x,y-1)) / (L(x+1,y)-L(x-1,y)) )
+
+ETAPA 4 – Descriptor de 128 dimensiones:
+  La vecindad 16×16 se divide en 16 sub-regiones de 4×4.
+  Cada sub-región genera un histograma de 8 orientaciones.
+  Total: 16 × 8 = 128 valores → vector descriptor normalizado (norma L2).
+
+
+────────────────────────────────────────────────────────────────────────────────
+2. DESCRIPCIÓN FORMAL / NARRATIVA
+────────────────────────────────────────────────────────────────────────────────
+
+SIFT identifica puntos clave robustos en una imagen (esquinas, manchas,
+etc.) y genera para cada uno una "huella digital" vectorial de 128
+dimensiones que no cambia aunque la imagen sea rotada, escalada o tenga
+diferente iluminación.
+
+Pasos del proceso:
+  1. Construir pirámide gaussiana: aplicar sucesivamente filtros
+     gaussianos de distinta sigma a la imagen.
+  2. Calcular diferencias entre capas consecutivas (DoG) para
+     detectar estructuras estables a distintas escalas.
+  3. Buscar extremos locales (máximos y mínimos) en los mapas DoG
+     comparando cada píxel con sus 26 vecinos 3D.
+  4. Refinar y filtrar puntos candidatos (eliminar puntos con bajo
+     contraste o sobre bordes).
+  5. Asignar una orientación dominante a cada punto clave.
+  6. Calcular el descriptor de 128 valores y normalizarlo.
+
+El resultado es una lista de puntos clave (coordenada + escala +
+orientación) y sus descriptores (matriz N×128), que pueden usarse
+para comparar o emparejar imágenes.
+
+
+────────────────────────────────────────────────────────────────────────────────
+3. PSEUDOCÓDIGO
+────────────────────────────────────────────────────────────────────────────────
+
+FUNCIÓN extraer_caracteristicas_sift(imagen_uint8):
+  // Validaciones
+  SI imagen no es np.ndarray:
+      LANZAR error "Se requiere np.ndarray"
+  SI imagen no es 2D:
+      LANZAR error "Se requiere imagen en escala de grises"
+  SI dtype de imagen no es uint8:
+      LANZAR error "Se requiere dtype uint8; usar img_as_ubyte()"
+
+  // ── ETAPA 1: Espacio de escala ──────────────────────────────
+  PARA cada octava o:
+      PARA cada nivel de escala s:
+          L[o][s] ← convolución_gaussiana(imagen, sigma[o][s])
+          D[o][s] ← L[o][s+1] - L[o][s]     // Difference of Gaussians
+
+  // ── ETAPA 2: Detección de extremos locales ──────────────────
+  candidatos ← []
+  PARA cada D[o][s] (excluyendo primera y última capa):
+      PARA cada píxel (x, y):
+          vecinos_26 ← píxeles en (x±1, y±1, s±1)
+          SI D[o][s][x,y] es máximo O mínimo de vecinos_26:
+              candidatos.agregar( (x, y, o, s) )
+
+  // ── ETAPA 3: Refinamiento y filtrado ────────────────────────
+  puntos_clave ← []
+  PARA cada (x, y, o, s) EN candidatos:
+      SI contraste < umbral:
+          CONTINUAR                  // descartar bajo contraste
+      SI punto sobre borde (ratio de curvaturas > umbral):
+          CONTINUAR                  // descartar bordes
+      puntos_clave.agregar( (x, y, o, s) )
+
+  // ── ETAPA 4: Asignación de orientación ──────────────────────
+  PARA cada punto_clave EN puntos_clave:
+      histograma_36 ← calcular_histograma_gradientes(vecindad_16x16)
+      orientacion_dominante ← argmax(histograma_36) * 10°
+      punto_clave.orientacion ← orientacion_dominante
+
+  // ── ETAPA 5: Cálculo del descriptor 128-D ───────────────────
+  descriptores ← []
+  PARA cada punto_clave EN puntos_clave:
+      descriptor ← vector vacío de 128 valores
+      region_16x16 ← extraer_region_rotada(imagen, punto_clave)
+      PARA cada subregion_4x4 (16 en total):
+          hist_8 ← histograma_de_gradientes(subregion_4x4, bins=8)
+          descriptor.concatenar(hist_8)
+      descriptor ← normalizar_L2(descriptor)
+      descriptores.agregar(descriptor)
+
+  // Resultado final
+  RETORNAR puntos_clave, descriptores     // descriptores shape (N, 128)
+
+// Ejemplo de uso:
+imagen_float ← convertir_a_gris(imagen_rgb)
+imagen_uint8 ← img_as_ubyte(imagen_float)
+kp, des ← extraer_caracteristicas_sift(imagen_uint8)
+IMPRIMIR "Puntos clave:", longitud(kp)
+IMPRIMIR "Shape descriptores:", forma(des)   // (N, 128)
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

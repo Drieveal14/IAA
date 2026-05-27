@@ -1,0 +1,101 @@
+================================================================================
+INTELIGENCIA ARTIFICIAL – UNIDAD 5
+ALGORITMO: FILTRO DE SOBEL (VISIÓN COMPUTACIONAL)
+Dra. Jessica Sarahi Méndez Rincón
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+1. FUNDAMENTOS MATEMÁTICOS
+────────────────────────────────────────────────────────────────────────────────
+
+El operador de Sobel aproxima el gradiente de intensidad de una imagen
+en escala de grises mediante dos kernels de convolución 3×3.
+
+Kernels:
+       [-1  0  1]              [ 1  2  1]
+  Gx = [-2  0  2]         Gy = [ 0  0  0]
+       [-1  0  1]              [-1 -2 -1]
+
+  Gx detecta cambios horizontales de intensidad (bordes verticales).
+  Gy detecta cambios verticales de intensidad (bordes horizontales).
+
+Convolución para cada píxel (i, j):
+  Gx(i,j) = Σ_{u,v} I(i+u, j+v) · Kx(u,v)
+  Gy(i,j) = Σ_{u,v} I(i+u, j+v) · Ky(u,v)
+
+Magnitud del gradiente (norma euclidiana):
+  G(i,j) = √( Gx(i,j)² + Gy(i,j)² )
+
+Dirección del gradiente (opcional):
+  θ(i,j) = arctan( Gy(i,j) / Gx(i,j) )
+
+Normalización al rango [0, 255]:
+  G_norm = (G / max(G)) × 255
+
+
+────────────────────────────────────────────────────────────────────────────────
+2. DESCRIPCIÓN FORMAL / NARRATIVA
+────────────────────────────────────────────────────────────────────────────────
+
+El filtro de Sobel detecta bordes en una imagen midiendo cuán
+bruscamente cambia la intensidad de los píxeles en sus vecindades.
+
+Un borde se produce donde hay un cambio fuerte de intensidad, lo que
+matemáticamente equivale a un gradiente grande.
+
+Pasos del proceso:
+  1. Recibir imagen en escala de grises de al menos 3×3 píxeles.
+  2. Aplicar padding de ceros en los bordes para no perder píxeles.
+  3. Para cada píxel, extraer la ventana 3×3 de vecinos.
+  4. Multiplicar elemento a elemento con Gx y Gy (suma de Hadamard).
+  5. Calcular la magnitud euclidiana del gradiente resultante.
+  6. Normalizar la imagen de salida al rango [0, 255].
+
+Resultado: imagen de bordes donde píxeles brillantes indican bordes
+fuertes y píxeles oscuros indican zonas uniformes.
+
+
+────────────────────────────────────────────────────────────────────────────────
+3. PSEUDOCÓDIGO
+────────────────────────────────────────────────────────────────────────────────
+
+FUNCIÓN sobel_filter(imagen):
+  // Validaciones
+  SI imagen no es 2D:
+      LANZAR error "Se requiere imagen en escala de grises"
+  SI imagen tiene menos de 3×3 píxeles:
+      LANZAR error "La imagen es demasiado pequeña"
+
+  // Definir kernels de Sobel
+  Gx ← [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
+  Gy ← [[ 1, 2, 1], [ 0, 0, 0], [-1,-2,-1]]
+
+  filas, cols ← dimensiones(imagen)
+  salida ← matriz de ceros de shape (filas × cols)
+
+  // Padding de ceros alrededor de la imagen
+  imagen_pad ← agregar_borde_cero(imagen, grosor=1)
+
+  // Convolución píxel a píxel
+  PARA i DESDE 0 HASTA filas-1:
+      PARA j DESDE 0 HASTA cols-1:
+          region ← imagen_pad[i:i+3, j:j+3]   // ventana 3×3
+
+          gx ← suma( region * Gx )             // suma de Hadamard con Gx
+          gy ← suma( region * Gy )             // suma de Hadamard con Gy
+
+          salida[i][j] ← sqrt(gx² + gy²)      // magnitud del gradiente
+
+  // Normalizar al rango [0, 255]
+  salida ← (salida / max(salida)) * 255
+
+  RETORNAR salida como uint8
+
+// Ejemplo de uso:
+bordes ← sobel_filter(imagen_gris)
+IMPRIMIR forma(bordes)   // mismo shape que imagen de entrada
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
